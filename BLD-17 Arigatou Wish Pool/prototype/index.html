@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>阿里亚多许愿池｜交互原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #e4ebed;
+    --ink: #1d2b33;
+    --ink-soft: #52646d;
+    --brass: #a9792f;
+    --brass-line: #c9a46a;
+    --water: #2a6170;
+    --glow: #ffc46b;
+    --field: #f3f6f6;
+    --rule: #c3ced2;
+    --serif: "Noto Serif SC", "Songti SC", "STSong", "Source Han Serif SC", serif;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  :root[data-time="night"] {
+    --sky: #101d2b;
+    --ink: #dce6ea;
+    --ink-soft: #93a7b0;
+    --brass: #d9b072;
+    --brass-line: #8a6a3a;
+    --water: #0e2a36;
+    --field: #172839;
+    --rule: #2c4150;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--sky); color: var(--ink); transition: background-color .8s ease, color .8s ease; }
+  body { font-family: var(--sans); font-size: 16px; line-height: 1.6; padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  .scene { position: relative; }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; }
+  .count { margin: 4px 0 0; text-align: center; color: var(--ink-soft); font-size: 14px; min-height: 1.6em; }
+
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 28px; letter-spacing: .06em; margin: 28px 0 4px; }
+  .lede { margin: 0 0 28px; color: var(--ink-soft); max-width: 36em; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; padding: 14px 0; border-top: 1px solid var(--rule); }
+  .row > .k { flex: 0 0 5em; color: var(--ink-soft); font-size: 14px; }
+  .row > .v { flex: 1 1 18em; }
+
+  .seg { display: inline-flex; gap: 18px; }
+  .seg button, .act, .link { font: inherit; background: none; border: 0; padding: 2px 0; color: var(--ink); cursor: pointer; border-bottom: 1px solid transparent; }
+  .seg button[aria-pressed="true"] { border-bottom-color: var(--brass); color: var(--brass); }
+  .act { color: var(--brass); border-bottom-color: var(--brass-line); }
+  .act:disabled { color: var(--ink-soft); border-bottom-color: transparent; cursor: default; }
+  .link { color: var(--ink-soft); font-size: 14px; }
+  button:focus-visible, textarea:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+  textarea { width: 100%; min-height: 4.5em; resize: vertical; font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--rule); border-radius: 2px; padding: 8px 10px; }
+  .note { font-size: 14px; color: var(--ink-soft); margin: 6px 0 0; }
+  .msg { min-height: 1.6em; margin: 8px 0 0; font-size: 14px; color: var(--brass); }
+
+  ul.mine { list-style: none; margin: 0; padding: 0; }
+  ul.mine li { padding: 10px 0; border-top: 1px dashed var(--rule); display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: baseline; }
+  ul.mine li:first-child { border-top: 0; padding-top: 0; }
+  .what { flex: 1 1 14em; }
+  .what .when { display: block; font-size: 13px; color: var(--ink-soft); }
+  .state-fulfilled .what::before { content: "●"; color: var(--glow); margin-right: .4em; }
+  .state-released .what { color: var(--ink-soft); }
+  .empty { color: var(--ink-soft); font-size: 14px; }
+
+  footer { margin-top: 40px; font-size: 13px; color: var(--ink-soft); }
+  @media (prefers-reduced-motion: reduce) { html, body { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="scene">
+    <canvas id="pool" aria-label="阿里亚多许愿池。池底的铜币中，亮着的那些是已经说过阿里亚多的愿望。"></canvas>
+    <p class="count" id="count" aria-live="polite"></p>
+  </div>
+
+  <h1>阿里亚多许愿池</h1>
+  <p class="lede">枢纽中心门前的一口小池。出发时许愿，归来时致谢。池子不判断愿望成没成，只有你自己知道。</p>
+
+  <div class="row">
+    <span class="k">你是</span>
+    <span class="v seg" id="who">
+      <button type="button" data-actor="resident:you" aria-pressed="true">你</button>
+      <button type="button" data-actor="resident:neighbor" aria-pressed="false">另一位居民</button>
+      <button type="button" data-actor="visitor:guest" aria-pressed="false">外来访客</button>
+    </span>
+  </div>
+
+  <div class="row">
+    <span class="k">此刻</span>
+    <span class="v seg" id="time">
+      <button type="button" data-time="day" aria-pressed="true">白天</button>
+      <button type="button" data-time="night" aria-pressed="false">夜里</button>
+    </span>
+  </div>
+
+  <div class="row">
+    <span class="k">许愿</span>
+    <div class="v">
+      <div class="seg" id="mode">
+        <button type="button" data-mode="silent" aria-pressed="true">在心里许</button>
+        <button type="button" data-mode="written" aria-pressed="false">写下来</button>
+      </div>
+      <div id="writeBox" hidden>
+        <p class="note">写下的愿望只有你自己看得到。</p>
+        <textarea id="text" maxlength="500" aria-label="你的愿望"></textarea>
+      </div>
+      <p style="margin:12px 0 0"><button type="button" class="act" id="toss">投一枚币</button></p>
+      <p class="msg" id="msg" role="status"></p>
+      <p class="note">每人每天一枚，不能多投。原型里可以 <button type="button" class="link" id="nextDay">过一天</button>／<button type="button" class="link" id="nextYear">过一年</button>（看「成了」的币慢慢变暗）。</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="k">你的币</span>
+    <div class="v"><ul class="mine" id="mine"></ul></div>
+  </div>
+
+  <footer>交互原型。数据只在本页内存中，刷新即清空。设计依据见 Notion《阿里亚多许愿池｜设计方案｜v0.2》。</footer>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
